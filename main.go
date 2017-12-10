@@ -6,31 +6,40 @@ import (
 )
 
 func main() {
-	if isExistParkingJson() == false {
-		// Get ShinHan Parking Page File
-		pageFilePath, err := getPageFilePath()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// Generate Parking Spaces
-		parkingSpaces, err := generateParkingSpace(pageFilePath)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// Store Parking Spaces
-		if err := storeParkingJson(parkingSpaces); err != nil {
-			log.Fatal(err)
-		}
+	// Download Parking Information Page
+	if err := DownloadParkingPage(); err != nil {
+		log.Fatal(err)
 	}
 
-	// Read Parking Spaces
-	json, err := readParkingJson()
+	// Transform Parking Page into simple text
+	if err := TransformPageToData(); err != nil {
+		log.Fatal(err)
+	}
+
+	// Read Transformed Parking Data
+	dataReader, err := ReadParkingData()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer dataReader.Close()
+
+	// Generate Parking Spaces Object
+	parkingSpaces, err := ParseParkingData(dataReader)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Store Parking Spaces Json
+	if err := StoreParkingJson(parkingSpaces); err != nil {
+		log.Fatal(err)
+	}
+
+	// Read Parking Spaces Json
+	json, err := ReadParkingJson()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Print Parking Spaces
-	fmt.Println(string(json))
+	fmt.Print(string(json))
 }

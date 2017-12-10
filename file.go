@@ -7,65 +7,103 @@ import (
 	"encoding/json"
 	"net/http"
 	"bytes"
+	"os/exec"
+	"errors"
 )
 
 const (
-	TargetURL = "https://www.shinhancard.com/conts/person/card_info/premium/platinum/1197988_12791.jsp"
-	DataDir   = "./data/"
+	targetURL = "https://www.shinhancard.com/conts/person/card_info/premium/platinum/1197988_12791.jsp"
+	dataDir   = "./data/"
 )
 
 var (
 	now         = time.Now().Format(time.RFC3339)
-	parkingPage = DataDir + now[0:10]
-	parkingJson = DataDir + now[0:10] + ".json"
+	parkingPage = dataDir + now[0:10] + ".jsp"
+	parkingData = dataDir + now[0:10] + ".dat"
+	parkingJson = dataDir + now[0:10] + ".json"
 )
 
-func getPageFilePath() (string, error) {
-	if _, err := os.Stat(parkingPage); err != nil {
+func isExist(filePath string) bool {
+	if _, err := os.Stat(filePath); err != nil {
 		if os.IsNotExist(err) {
-			resp, err := http.Get(TargetURL)
-			if err != nil {
-				return "", err
-			}
-			defer resp.Body.Close()
-
-			body, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				return "", err
-			}
-
-			if err := ioutil.WriteFile(parkingPage, body, 0644); err != nil {
-				return "", err
-			}
+			return false
 		} else {
-			return "", err
+			panic(err)
 		}
 	}
-
-	return parkingPage, nil
+	return true
 }
 
-func storeParkingJson(parkingSpaces []ParkingSpace) error {
-	if _, err := os.Stat(parkingJson); err != nil {
-		if os.IsNotExist(err) {
-			jsonData, err := MarshalJSON(parkingSpaces)
-			if err != nil {
-				return err
-			}
-
-			if err := ioutil.WriteFile(parkingJson, jsonData, 0644); err != nil {
-				return err
-			}
-		}
+func DownloadParkingPage() error {
+	if isExist(parkingPage) {
+		return nil
 	}
+
+	resp, err := http.Get(targetURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile(parkingPage, body, 0644); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func readParkingJson() ([]byte, error) {
-	if _, err := os.Stat(parkingJson); err != nil {
-		if os.IsNotExist(err) {
-			return nil, err
-		}
+func TransformPageToData() error {
+	if isExist(parkingData) {
+		return nil
+	}
+
+	cmd := exec.Command("./transform.sh", parkingPage, parkingData)
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ReadParkingData() (*os.File, error) {
+	if !isExist(parkingData) {
+		return nil, errors.New("file does not exist")
+	}
+
+	file, err := os.Open(parkingData)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
+}
+
+func StoreParkingJson(parkingSpaces []ParkingSpace) error {
+	if isExist(parkingJson) {
+		return nil
+	}
+
+	jsonData, err := MarshalJSON(parkingSpaces)
+	if err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile(parkingJson, jsonData, 0644); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ReadParkingJson() ([]byte, error) {
+	if !isExist(parkingJson) {
+		return nil, errors.New("file does not exist")
 	}
 
 	jsonFile, err := ioutil.ReadFile(parkingJson)
@@ -74,17 +112,6 @@ func readParkingJson() ([]byte, error) {
 	}
 
 	return jsonFile, nil
-}
-
-func isExistParkingJson() bool {
-	if _, err := os.Stat(parkingJson); err != nil {
-		if os.IsNotExist(err) {
-			return false
-		} else {
-			panic(err)
-		}
-	}
-	return true
 }
 
 // How to stop json.Marshal from escaping < and >?

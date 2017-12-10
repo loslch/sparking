@@ -8,7 +8,7 @@ import (
 )
 
 func TestShinHanPageConnection(t *testing.T) {
-	resp, err := http.Get(TargetURL)
+	resp, err := http.Get(targetURL)
 
 	if err != nil {
 		t.Fatal(err)

@@ -1,9 +1,8 @@
 package main
 
 import (
-	"io"
 	"bufio"
-	"os/exec"
+	"io"
 )
 
 type Location struct {
@@ -18,31 +17,10 @@ type ParkingSpace struct {
 	Locations []Location `json:"locations"`
 }
 
-func parsePage(pagePath string) (io.ReadCloser, error) {
-	cmd := exec.Command("./parse.sh", pagePath)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-
-	return stdout, nil
-}
-
-func generateParkingSpace(pageFilePath string) ([]ParkingSpace, error) {
+func ParseParkingData(r io.Reader) ([]ParkingSpace, error) {
 	var parkingSpaces []ParkingSpace
 
-	// Transform Parking Page into Text
-	stdout, err := parsePage(pageFilePath)
-	if err != nil {
-		return nil, err
-	}
-	defer stdout.Close()
-
-	scanner := bufio.NewScanner(stdout)
+	scanner := bufio.NewScanner(r)
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
